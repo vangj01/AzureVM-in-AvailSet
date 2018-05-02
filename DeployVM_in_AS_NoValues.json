@@ -1,0 +1,275 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+
+  "parameters": {
+    "RGName": {
+      "type": "string",
+      "metadata": {
+        "description": "Specify the RG Name."
+        }
+      },
+      "VMName": {
+        "type": "string",
+        "minLength": 1,
+        "metadata": {
+          "description": "Specify the name of the VM."
+        }
+      },
+      "VMAdminUserName": {
+        "type": "string",
+        "minLength": 1
+      },
+      "VMAdminPassword": {
+        "type": "string",
+        "minLength": 1
+      },
+      "VMWindowsOSVersion": {
+        "type": "string",
+        "allowedValues": [
+          "2008-R2-SP1",
+          "2012-Datacenter",
+          "2012-R2-Datacenter",
+          "2016-Datacenter"
+        ],
+        "metadata": {
+          "description": "Specify the OS Version."
+        }
+      },
+      "location": {
+        "type": "string",
+        "allowedValues": [
+          "southcentralus",
+          "centralus",
+          "eastus",
+          "eastus2",
+          "westus",
+          "northcentralus"
+        ],
+        "metadata": {
+          "description": "Specify the Location."
+        }
+      },
+      "TAGENVIRONMENTTYPE": {
+        "type": "string",
+        "allowedValues": [
+          "PRD",
+          "STG",
+          "DEV",
+          "LAB",
+          "DR",
+          "QA",
+          "POC"
+        ],
+        "metadata": {
+          "description": "Specify the Environment Type."
+        }
+      },
+      "TAGBusinessUnit": {
+        "type": "string"
+      },
+      "TAGFunction": {
+        "type": "string",
+        "allowedValues": [
+          "APP",
+          "DB",
+          "DC",
+          "FS",
+          "FTP",
+          "JMP",
+          "MSG",
+          "TMP",
+          "WEB"
+        ],
+        "metadata": {
+          "description": "Specify the Function of the VM."
+        }
+      },
+      "TAGApplication": {
+        "type": "string",
+        "metadata": {
+          "description": "Specify the Application Name."
+        }
+      },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Specify the SA Name."
+      }
+    },
+      "virtualNetworkName": {
+        "type": "string",
+        "metadata": {
+          "description": "Specify the vNet Name."
+        }
+      },
+      "virtualNetworkSubnet": {
+        "type": "string",
+        "metadata": {
+          "description": "Specify the vNet Subnet name."
+        }
+      },
+      "VMNicPrivateIP": {
+        "type": "string",
+        "metadata": {
+          "description": "Specify the private IP address of VM."
+        }
+      },
+      "VMNicDNS": {
+        "type": "array",
+        "metadata": {
+          "description": "Specify the DNS addresses."
+        }
+      },
+      "VMSize": {
+        "type": "string",
+        "metadata": {
+          "description": "Specify the VM tier Size."
+        }
+      },
+    "VMdataDiskSize": {
+      "type": "string",
+      "metadata": {
+        "description": "Specify the Data disk size."
+      }
+    },
+    "AvailSetName": {
+      "type": "string",
+      "defaultValue": "<enter the Availability Set Name here>",
+      "minLength": 1
+    }
+
+  },
+  "variables": {
+    "VM-ImagePublisher": "MicrosoftWindowsServer",
+    "VM-ImageOffer": "WindowsServer",
+    "VM-OSDiskName": "[concat(parameters('VMName'), '-OSDisk')]",
+    "VM-dataDiskName": "[concat(parameters('VMName'), '-dataDisk01')]",
+    "VM-VnetID": "[resourceId(parameters('RGName'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "VM-SubnetRef": "[concat(variables('VM-VnetID'), '/subnets/', parameters('virtualNetworkSubnet'))]",
+    "VM-StorageAccountContainerName": "vhds",
+    "VM-NicName": "[concat(parameters('VMName'), '-NIC1')]"
+
+  },
+  "resources": [
+    {
+      "name": "[variables('VM-NicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[parameters('location')]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ ],
+      "tags": {
+        "Name": "[variables('VM-NicName')]",
+        "Business Unit": "[parameters('TAGBusinessUnit')]",
+        "EnvironmentType": "[parameters('TAGENVIRONMENTTYPE')]",
+        "Function": "[parameters('TAGFunction')]",
+        "Application": "[parameters('TAGApplication')]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[parameters('VMNicPrivateIP')]",
+              "subnet": {
+                "id": "[variables('VM-SubnetRef')]"
+              }
+            }
+          }
+        ],
+        "dnsSettings": {
+          "dnsServers": "[parameters('VMNicDNS')]"
+        }
+
+      }
+    },
+    {
+      "name": "[parameters('VMName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[parameters('location')]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('VM-NicName'))]",
+        "[resourceId('Microsoft.Compute/availabilitySets/', parameters('AvailSetName'))]"
+      ],
+      "tags": {
+        "Name": "[parameters('VMName')]",
+        "Business Unit": "[parameters('TAGBusinessUnit')]",
+        "EnvironmentType": "[parameters('TAGENVIRONMENTTYPE')]",
+        "Function": "[parameters('TAGFunction')]",
+        "Application": "[parameters('TAGApplication')]"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('VMSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets/', parameters('AvailSetName'))]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('VMName')]",
+          "adminUsername": "[parameters('VMAdminUserName')]",
+          "adminPassword": "[parameters('VMAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('VM-ImagePublisher')]",
+            "offer": "[variables('VM-ImageOffer')]",
+            "sku": "[parameters('VMWindowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('VMName'), '-OSDisk')]",
+            "vhd": {
+              "uri": "[concat(reference(resourceId(parameters('RGName'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints.blob, variables('VM-StorageAccountContainerName'), '/', variables('VM-OSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "name": "[concat(parameters('VMName'), '-dataDisk01')]",
+              "vhd": {
+                "uri": "[concat(reference(resourceId(parameters('RGName'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints.blob, variables('VM-StorageAccountContainerName'), '/', variables('VM-dataDiskName'), '.vhd')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "Empty",
+              "diskSizeGB": "[parameters('VMdataDiskSize')]"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('VM-NicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "[parameters('AvailSetName')]",
+      "type": "Microsoft.Compute/availabilitySets",
+      "location": "[parameters('location')]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [ ],
+      "tags": {
+        "Name": "[parameters('AvailSetName')]",
+        "Business Unit": "[parameters('TAGApplication')]",
+        "EnvironmentType": "[parameters('TAGENVIRONMENTTYPE')]",
+        "Application": "[parameters('TAGApplication')]"
+      },
+      "properties": {
+        "platformUpdateDomainCount": 2,
+        "platformFaultDomainCount": 2
+      }
+    }
+
+  ],
+  "outputs": {
+
+  }
+}
+
