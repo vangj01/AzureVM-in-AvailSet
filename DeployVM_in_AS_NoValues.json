@@ -257,7 +257,7 @@
       "dependsOn": [ ],
       "tags": {
         "Name": "[parameters('AvailSetName')]",
-        "Business Unit": "[parameters('TAGApplication')]",
+        "Business Unit": "[parameters('TAGBusinessUnit')]",
         "EnvironmentType": "[parameters('TAGENVIRONMENTTYPE')]",
         "Application": "[parameters('TAGApplication')]"
       },
